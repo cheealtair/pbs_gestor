@@ -1,0 +1,51 @@
+PBS-GESTOR
+========================================================================
+
+PBS Gestor is a daemon that reads the PBS accounting log messages and
+sends them to PostgreSQL database.
+
+------------------------------------------------------------------------
+INSTALL
+------------------------------------------------------------------------
+
+PRE-REQUISITES:
+* Python, version 2.7 or 3.6: https://www.python.org/
+* PBS server accounting logs access
+* PostgreSQL, version 9, such as 9.2.24 or 9.6.11: https://www.postgresql.org/
+
+PRE-SETUP:
+
+* PBS:
+    - Start the PBS Server.
+* PostgreSQL:
+    - Set up host-based authentication (HBA) configuration as needed
+      usually in /var/lib/pgsql/data/pg_hba.conf
+    - Start PostgreSQL server.
+    - Add PostgreSQL authentication data to PBS Gestor configuration file
+      ~/.config/pbs_gestor/pbs_gestor_config.json
+      such as: hostname, port, username, password, database name
+
+SETUP:
+* Copy or move the `gestor` directory to an accessible location.
+
+* The following components needs to be updated before starting the PBS Gestor daemon:
+    - pbs_gestor_config.json - system related config needed for PBS
+    Gestor plugin. Includes database authentication, logging configuration.
+    Add PostgreSQL authentication data here, such as:
+    hostname, port, username, password, database name
+
+    Note - If you move pbs_gestor_config.json to a different location,
+    please create or update the environment variable PBS_GESTOR_CONF 
+    with the location of pbs_gestor_config.json .
+
+* Start the Daemon script with the following command:
+   >> /path/to/pbs_gestor.pex
+   OR
+   >> python /path/to/pbs_gestor.pex
+   OR
+   >> python3 /path/to/pbs_gestor.pex
+   OR
+   >> python3.x /path/to/pbs_gestor.pex
+
+* Run some pbs jobs - If all the configurations are set properly then
+  you should see some records in the PostgreSQL database.
