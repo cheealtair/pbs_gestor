@@ -1,0 +1,21 @@
+========================================================================
+PBS-GESTOR
+========================================================================
+
+PBS Gestor is a daemon that reads the PBS accounting log messages and
+sends them to the PostgreSQL database in the desired format.
+
+------------------------------------------------------------------------
+Package v7
+------------------------------------------------------------------------
+
+ENHANCEMENTS:
+* Integration of Producer and Consumer into one daemon.
+* Ability to process logs over a certain date range.
+* Documentation.
+* Flat views of tables with jobs and resources, with attributes such as walltime and CPU usage.
+* Creates database, schema, tables and views if they do not exist yet.
+* Python 2.7 - Python 3.6 compatibility.
+
+NOTES:
+* Pylint Score - 10/10
