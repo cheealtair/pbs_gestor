@@ -21,12 +21,39 @@ PRE-SETUP:
     - Set up host-based authentication (HBA) configuration as needed
       usually in /var/lib/pgsql/data/pg_hba.conf
     - Start PostgreSQL server.
-    - Add PostgreSQL authentication data to PBS Gestor configuration file
-      ~/.config/pbs_gestor/pbs_gestor_config.json
-      such as: hostname, port, username, password, database name
+    - Add PostgreSQL authentication data to PBS Gestor configuration file pbs_gestor_config.json ;
+      such as: hostname, port, username, password, database name;
+        - When you run PBS Gestor, it determines where to look for the file
+          (default system location such as ~/.config/pbs_gestor/pbs_gestor_config.json ,
+          or PBS_GESTOR_CONF if such environmental variable is set),
+          prints out the location of configuration file to stdout,
+          and if such file does not exist (for example, on the first run of PBS Gestor),
+          then copies the default template to that location.
+        There also extra/back-up values 'supdatabase', 'supusername' and 'suppassword',
+      which are not used by the program unless necessary, see examples below.
+        If the database doesn't exist, it will be created - user needs to have CREATEDB permissions,
+      and it will be done by briefly connecting to 'supdatabase' ("postgres" by default) first .
+        If tablefunc extension isn't installed in the database, it will be created - by
+      briefly connecting as super-user (see 'supusername' being "postgres" by default) first.
+        Tablefunc extension is required for Crosstab function to pivot a table,
+      see details on PbsJobArr table and PbsRawFlatView view below.
 
 SETUP:
-* Copy or move the `gestor` directory to an accessible location.
+* Copy or move the `gestor` directory to any location accessible/preferable for you.
+
+* If you haven't run the program before, run the program once, so that it writes out
+  the default settings to a configuration file, and prints out location of the configuration file:
+   >> /path/to/pbs_gestor.pex
+   OR
+   >> python /path/to/pbs_gestor.pex
+   OR
+   >> /path/to/pbs_gestor.pex -c
+   OR
+   >> python /path/to/pbs_gestor.pex -c
+    On the first run - defined as when program doesn't find the config file at expected location,
+    and has to create the configuration file with default settings - or if run with '-c' flag,
+    the program doesn't establish a database connection,
+    but just prints out location of the config file for user to put in the specific configuration.
 
 * The following components needs to be updated before starting the PBS Gestor daemon:
     - pbs_gestor_config.json - system related config needed for PBS
@@ -40,12 +67,122 @@ SETUP:
 
 * Start the Daemon script with the following command:
    >> /path/to/pbs_gestor.pex
+   which should work as long as Python interpreter can be found at /usr/bin/python
    OR
    >> python /path/to/pbs_gestor.pex
    OR
    >> python3 /path/to/pbs_gestor.pex
    OR
    >> python3.x /path/to/pbs_gestor.pex
+  If you have source code of the program, it can also be run similarly with:
+   >> python /path/to/gestor.py
+    but that requires installation of dependencies such as sqlalchemy - full list is inside setup.py
+
+* Once started, the program can be seen in list of processes, such as in 'top'.
+  If started directly as:
+   >> /path/to/pbs_gestor.pex
+    then the process name will be the same as name of the file, for example, 'pbs_gestor.7.7.',
+    and it can be terminated with, for example, 'pkill pbs_gestor'.
+  If started indirectly, such as:
+   >> python /path/to/pbs_gestor.pex
+    then the process name will be the same as name of the Python interpreter used to run it,
+    for example, 'python3', but it can still be identified with, for example,
+    'ps aux | grep pbs_gestor'.
+
+* To see help about the program, and examples of usage, run it with ' --help', for example:
+   >> /path/to/pbs_gestor.pex --help
+  For example, you can supply the dates between which to process the logs as follows:
+   >> /path/to/pbs_gestor.pex -f lastscan -t today
+   OR
+   >> /path/to/pbs_gestor.pex -f 20011231 -t 20190726
+  Keep in mind that once processing of logs between the specified dates is finished,
+  program doesn't exit; it opens today's log file and starts scanning today's logs,
+  continuing indefinitely to process jobs' records as they arrive.
+
+* The program outputs to stdout some minimal amount of information,
+  such as: the range of dates in which it is going to process logs,
+  and which log it is processing. Far more verbose output can be found in
+  log file, which is usually written to /tmp/pbs_gestor_log - the setting can be configured
+  inside pbs_gestor_config.json , under logger / handlers / rotating_file_handler.
 
 * Run some pbs jobs - If all the configurations are set properly then
-  you should see some records in the PostgreSQL database.
+  you should see some records in the PostgreSQL database. The jobs are recorded
+  in the tables 'pbsjob' and 'pbsjobarr' under schema 'schema' ,
+  inside the database 'pbsjoblogsdb'; all these names are settings 
+  specified inside pbs_gestor_config.json .
+
+  - PbsJob table contains jobs and their attributes:
+    name of the job, running time, vnode, user who started it, et cetera.
+  - PbsJobArr contains job resources: assigned to jobs, or used by jobs.
+      One column contains unique job identifier for relationship to PbsJob table,
+      another column contains name of resource, and the last column contains value of resource.
+  - Supplementary table PBSLog contains log handler records of which logs were processed when.
+  
+  Upon connecting to the PostgreSQL database
+  - for example, with the command
+    psql -h hostname -p port -U username  -d databasename
+    with default database connection settings it would be
+    psql -h localhost -p 5432 -U postgres  -d pbsjoblogsdb
+  you would be able to query the contents of the tables inside the database, such as:
+  - SELECT * FROM schema.pbsjob;
+  OR
+  - SELECT * FROM schema.pbsjob WHERE ji_user='username';
+  where username is name of a user whose job history you want to look up
+  OR
+  - SELECT count(*) FROM schema.pbsjob WHERE ji_user='username';
+  if you want to count how many jobs the user has run in the past
+  OR
+  - any other SQL query
+  
+  Additionally, there are also two Views created, 'pbsrawflatview' and 'pbsrawflatviewjoin',
+  inside the same schema as tables.
+  - PbsFlatView contains a subset of information from PbsJobArr,
+    pivoting the table with PostgreSQL's Crosstab function from Tablefunc extension
+    so that requested and used resources would be organised into the following columns:
+    'mem', 'ncpus', 'walltime', 'cput', 'nodect', 'cpupercent', et cetera
+    instead of being contained in a Entity–attribute–value model as in PbsJobArr table.
+    See: https://www.postgresql.org/docs/9.2/tablefunc.html#AEN152349
+    Resources requested by job are prefixed with l,
+    to be differentiated from resources used by job.
+    It is also joined with PbsJob table so that Job ID would be available as one of the columns.
+    See INNER JOIN on the following documentation page:
+    https://www.postgresql.org/docs/9.2/queries-table-expressions.html#QUERIES-JOIN
+    The values for the resources, such as ncpus or walltime, are cast to appropriate data types,
+    so that arithmetic operations can be performed on them.
+  These views can be queried similarly to tables, for example:
+  - SELECT * FROM schema.pbsflatviewreqjoin WHERE l_nodect > 1;
+  displays list of all jobs which requested/used more than one node.
+
+* For troubleshooting, try to connect to the database with the same settings
+  (hostname, port, username, databasename) as are inside pbs_gestor_config.json file.
+  - For ease of troubleshooting, application prints out the location from which it is reading
+    the configuration file pbs_gestor_config.json . As noted earlier, if you move the file
+    to a different location, please create or update the environment variable PBS_GESTOR_CONF 
+    with the location of pbs_gestor_config.json .
+  
+  Check whether schema 'schema' exists by querying list of schemas with '\dn'
+  command inside psql client.
+  
+  Check whether tables exist with '\dt schema.*' command.
+  
+  Check whether tablefunc extension is installed with the following command:
+  - \dx+ tablefunc
+  If it says 'Did not find any extension named "tablefunc"',
+  then Tablefunc extension is not installed and Crosstab function is not available.
+  If the Tablefunc extension is installed successfully,
+  then there will be list of objects in extension "tablefunc",
+  such as connectby, crosstab and normal_rand.
+  OR
+  - SELECT count(*) FROM information_schema.routines WHERE routine_name LIKE 'crosstab%'
+  If it is 0, then Tablefunc extension is not installed and Crosstab function is not available.
+  If it is above 0 - for example, 6 - then Crosstab function is available, which is good.
+
+  If Tablefunc extension is installed, then you may also wish to check where it is installed:
+  - SELECT routine_schema FROM information_schema.routines WHERE routine_name LIKE 'crosstab%'
+  OR
+  - SELECT specific_schema FROM information_schema.routines WHERE routine_name LIKE 'crosstab%'
+  (which usually return the same result)
+  to see which schema contains the installed Crosstab function.
+  - Application expects this result to be either 'schema' or, failing that,
+    something like 'public' so that the function is inside PostgreSQL's search_path.
+    See: https://www.postgresql.org/docs/9.2/runtime-config-client.html#GUC-SEARCH-PATH

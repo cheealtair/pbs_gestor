@@ -3,7 +3,8 @@
 
 # You can set these variables from the command line.
 SPHINXOPTS    =
-SPHINXBUILD   = sphinx-build
+SPHINXBUILD   = python3 /home/wikiwide/.local/bin/sphinx-build
+# SPHINXBUILD   = sphinx-build
 SOURCEDIR     = source
 BUILDDIR      = build
 
@@ -17,13 +18,13 @@ docs:
 	mkdir ../tmp
 	mv ../setup.py ../tmp
 	mv ../conftest.py ../tmp
-	sphinx-apidoc -P -f -o "$(SOURCEDIR)" ../
+	sphinx-apidoc -M -P -f -o "$(SOURCEDIR)" ../
 	@$(SPHINXBUILD) -b pdf "$(SOURCEDIR)" "$(BUILDDIR)"/pdf/
 	mv ../tmp/*.py ../
 	rmdir ../tmp
-	rm ../*.pyc
-	rm ../pbs_gestor/*.pyc
-	rm ../pbs_gestor/model/*.pyc
+	rm -f ../*.pyc
+	rm -f ../pbs_gestor/*.pyc
+	rm -f ../pbs_gestor/model/*.pyc
 
 # Catch-all target: route all unknown targets to Sphinx using the new
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).

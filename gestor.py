@@ -48,12 +48,14 @@ import logging
 import logging.config
 import sys
 from datetime import datetime, timedelta, date
+from sqlalchemy.exc import OperationalError
 from pbs_gestor.model.exceptions import ConfigurationError, DatabaseError, LogLineError
 from pbs_gestor.pbs_loghandler import PbsLogHandler
-from pbs_gestor.utils import LOGGING_CONFIG, GESTOR_CONFIG
+from pbs_gestor.utils import LOGGING_CONFIG, GESTOR_CONFIG, GESTOR_FIRST_RUN
 from pbs_gestor.reporting_database_connect import ReportingDBLib
 
 LOGFORM = "%Y%m%d"
+GESTOR_FIRST_RUN = GESTOR_FIRST_RUN
 
 
 def set_logger():
@@ -184,37 +186,25 @@ def date_range(start_date, end_date):
 LOG = logging.getLogger(__name__)  # ???Constant or variable?!!!
 
 
-class StrToDate(argparse.Action):
-    """Parse day given by user and set it into namespace as date."""
-
-    # pylint: disable=too-few-public-methods
-
-    def __init__(self, option_strings, database_handler, dest=None, nargs=None, **kwargs):
-        """Initialise the action."""
-        if nargs is not None:
-            raise ValueError("nargs not allowed")
-        self.dath = database_handler
-        super(StrToDate, self).__init__(option_strings, dest, **kwargs)
-
-    def __call__(self, parser, namespace, fromday, option_string=None):
-        """Process the day argument to convert it to date."""
-        if fromday == 'today':
-            fromdate = datetime.now().date()
-            fromday = fromdate.strftime(LOGFORM)
-        elif fromday == 'lastscan':
-            fromdate = self.dath.lastscan()
-            if fromdate == 'firstlog':
-                fromdate = datetime.strptime(PbsLogHandler().get_first_log(), LOGFORM).date()
-            else:
-                fromdate = fromdate+timedelta(days=1)
-            fromday = fromdate.strftime(LOGFORM)
-        elif fromday == 'firstlog':
+def str_to_date(fromday, dath):
+    """Parse day given by user and convert it to date."""
+    if fromday == 'today':
+        fromdate = datetime.now().date()
+        fromday = fromdate.strftime(LOGFORM)
+    elif fromday == 'lastscan':
+        fromdate = dath.lastscan()
+        if fromdate == 'firstlog':
             fromdate = datetime.strptime(PbsLogHandler().get_first_log(), LOGFORM).date()
-            fromday = fromdate.strftime(LOGFORM)
         else:
-            fromdate = datetime.strptime(fromday, LOGFORM).date()
-            fromday = fromdate.strftime(LOGFORM)
-        setattr(namespace, self.dest, fromdate)
+            fromdate = fromdate+timedelta(days=1)
+        fromday = fromdate.strftime(LOGFORM)
+    elif fromday == 'firstlog':
+        fromdate = datetime.strptime(PbsLogHandler().get_first_log(), LOGFORM).date()
+        fromday = fromdate.strftime(LOGFORM)
+    else:
+        fromdate = datetime.strptime(fromday, LOGFORM).date()
+        fromday = fromdate.strftime(LOGFORM)
+    return fromdate
 
 
 def none_to_today(checkdate):
@@ -227,20 +217,19 @@ def none_to_today(checkdate):
         checkdate: either given date or current date
     """
     if not checkdate:
-        checkdate = datetime.now().date()
+        checkdate = datetime.now().date().strftime(LOGFORM)
     return checkdate
 
 
-def parse_input(database_handler):
+def get_input():
     """
-    Parse arguments provided and return a list of log handlers.
+    Get arguments provided.
 
     Args:
         args: list of arguments provided by user to application
-        database_handler: connection to database, in order to be able to look up
-                          the last log file which was ever scanned
     Returns:
-        pbs_log_handlers: list of log handlers
+        fromdate (str): input argument
+        tilldate (str): input argument
     """
     description = ('Process PBS Pro logs across a range of dates. '
                    'After parsing logs in the past (if so requested), '
@@ -256,12 +245,36 @@ def parse_input(database_handler):
                                                               strftime(LOGFORM)))
     parser = argparse.ArgumentParser(description=description,
                                      epilog=epilog)
-    parser.add_argument('-f', '--fromdate', help='the date from which to begin reading the logs',
-                        action=StrToDate, database_handler=database_handler)
-    parser.add_argument('-t', '--tilldate', help='the date till which to read the past logs',
-                        action=StrToDate, database_handler=database_handler)
+    parser.add_argument('-f', '--fromdate', help='the date from which to begin reading the logs')
+    parser.add_argument('-t', '--tilldate', help='the date till which to read the past logs')
+    parser.add_argument('-c', '--config', help=('do not establish database connection, '
+                                                'just print out location of configuration file'),
+                        action='count')
     arguments = parser.parse_args()
-    fromdate, tilldate = none_to_today(arguments.fromdate), none_to_today(arguments.tilldate)
+    if arguments.config is not None or GESTOR_FIRST_RUN:
+        if GESTOR_FIRST_RUN or arguments.config > 0:
+            if GESTOR_FIRST_RUN:
+                print(("Default settings have been written to the configuration file. "
+                       "Please read and edit the settings as appropriate "
+                       "for connecting to your PostgreSQL database, "
+                       "and then start the program again."))
+            sys.exit()
+    return arguments.fromdate, arguments.tilldate
+
+
+def parse_input(fromdate, tilldate, database_handler):
+    """
+    Parse arguments provided and return a list of log handlers.
+
+    Args:
+        fromdate, tilldate: arguments provided by user to application
+        database_handler: connection to database, in order to be able to look up
+                          the last log file which was ever scanned
+    Returns:
+        pbs_log_handlers: list of log handlers
+    """
+    fromdate = str_to_date(none_to_today(fromdate), database_handler)
+    tilldate = str_to_date(none_to_today(tilldate), database_handler)
     pbs_log_handlers = []
     print("Will be reading logs from day: %s, till day: %s" % (fromdate, tilldate))
     if fromdate == tilldate:
@@ -323,7 +336,8 @@ def main(system_config):
          None
     """
     set_logger()
-    LOG.info('Starting the PBS Gestor. %s', datetime.now())
+    LOG.info('Starting the PBS Gestor. %s, log file %s', datetime.now(), LOGGING_CONFIG)
+    fromday, tillday = get_input()
     try:
         with ReportingDBLib(system_config["database"]) as database_handler:
             if not database_handler.is_connected_database():
@@ -332,44 +346,34 @@ def main(system_config):
                 sys.exit()
             else:
                 LOG.info("Connection to Reporting Database seems to be successful")
-        pbs_log_handlers = parse_input(database_handler)
+        pbs_log_handlers = parse_input(fromday, tillday, database_handler)
         for pbs_log_handler in pbs_log_handlers:
             start, count = datetime.now().date(), 0
             logdate = datetime.strptime(pbs_log_handler.log_file_name, LOGFORM).date()
             print("Processing log %s" % logdate)
-            for log_line in pbs_log_handler.readline():
-                try:
+            try:
+                for log_line in pbs_log_handler.readline():
                     logdate, start, count = detect_log_switch(pbs_log_handler, database_handler,
                                                               [count, logdate, start])
-                except DatabaseError.ConnectionError:
-                    LOG.critical("Connection to log database lost. Exiting Gestor daemon!")
-                    sys.exit()
-                try:
-                    processed_log = pbs_log_handler.process_log_line(log_line)
-                except LogLineError:
-                    LOG.exception("Log file: %s . Log line: %s.", logdate, log_line)
-                    continue
-                parsed_log_message = log_line_parser(processed_log)
-                LOG.info("Successfully parsed for job with ID %s, event %s",
-                         parsed_log_message.get("event_type", None),
-                         parsed_log_message.get("ji_jobid", None))
-                LOG.info("Attempting to write to database. . .")
-                try:
+                    try:
+                        processed_log = pbs_log_handler.process_log_line(log_line)
+                    except LogLineError as exc:
+                        LOG.exception("Log file: %s .Log line: %s. %s", logdate, log_line, str(exc))
+                        continue
+                    parsed_log_message = log_line_parser(processed_log)
+                    LOG.info("Successfully parsed for job with ID %s, event %s",
+                             parsed_log_message.get("event_type", None),
+                             parsed_log_message.get("ji_jobid", None))
+                    LOG.info("Attempting to write to database. . .")
                     database_handler.write(key="job_info", data=parsed_log_message)
                     count = count+1
-                except DatabaseError.ConnectionError:
-                    LOG.critical("Connection to job database lost. Exiting Gestor daemon! %s",
-                                 processed_log)
-                    sys.exit()
-            if count > 0:
-                end = datetime.now().date()
-                try:
+                if count > 0:
+                    end = datetime.now().date()
                     database_handler.write(key="log_info", data={'start': start, 'end': end,
                                                                  'filename': logdate})
-                except DatabaseError.ConnectionError:
-                    LOG.critical("Connection to log database lost. Exiting Gestor daemon! %s",
-                                 logdate)
-                    sys.exit()
+            except DatabaseError.ConnectionError:
+                LOG.critical("Connection to database lost. Exiting Gestor daemon!")
+                sys.exit()
             if pbs_log_handler.log_file_name == pbs_log_handlers[-1].log_file_name:
                 if pbs_log_handler.log_file_name != datetime.now().date().strftime(LOGFORM):
                     print('Processed past logs till %s, going to today''s logs: %s',
@@ -379,6 +383,10 @@ def main(system_config):
                              datetime.now().date().strftime(LOGFORM))
                     pbs_log_handlers.append(PbsLogHandler())
         LOG.info("Exiting Gestor daemon!!!")
+    except OperationalError:
+        LOG.exception("Couldn't connect to database, check contents of Gestor configuration file")
+        print("Check database connection settings in configuration file")
+        sys.exit()
     except KeyboardInterrupt:
         LOG.exception("Killed by user with keyboard!")
         print("Keyboard Interrupt, application exiting!")

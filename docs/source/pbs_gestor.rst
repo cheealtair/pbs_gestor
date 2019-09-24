@@ -1,6 +1,11 @@
 pbs\_gestor package
 ===================
 
+.. automodule:: pbs_gestor
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 Subpackages
 -----------
 
@@ -36,10 +41,3 @@ pbs\_gestor.utils module
     :show-inheritance:
 
 
-Module contents
----------------
-
-.. automodule:: pbs_gestor
-    :members:
-    :undoc-members:
-    :show-inheritance:

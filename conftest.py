@@ -35,7 +35,7 @@ def run_cmd(cmd=None, sudo=False, stdin=None, stdout=PIPE, stderr=PIPE):
     if sudo:
         cmd = ['sudo', '-H'] + cmd
 
-    popen = Popen(cmd, stdin=stdin, stdout=stdout, stderr=stderr)
+    popen = Popen(cmd, stdin=stdin, stdout=stdout, stderr=stderr, shell=False)
     (output, errors) = popen.communicate()
     ret['rc'] = popen.returncode
 
