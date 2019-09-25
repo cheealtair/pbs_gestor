@@ -6,7 +6,7 @@ PBS Gestor is a daemon that reads the PBS accounting log messages and
 sends them to the PostgreSQL database in the desired format.
 
 ------------------------------------------------------------------------
-Package v7.7
+Package v7.8
 ------------------------------------------------------------------------
 
 ENHANCEMENTS:
@@ -17,6 +17,8 @@ ENHANCEMENTS:
 * Creates database, schema, tables and views if they do not exist yet.
 * Python 2.7 - Python 3.7 compatibility.
 * Configurable names of schema and tables.
+* Compatibility with psycopg2 earlier than 2.8.
+* If extension 'tablefunc' is installed in a different schema, use it, and give user access to the schema as required.
 
 NOTES:
 * Pylint Score - 10/10
@@ -24,6 +26,6 @@ NOTES:
   requires all versions of Python (2.7, 3.4, 3.5, 3.6, 3.7) installed and available in the $PATH,
   with pip, wheel and setuptools installed for each of the Python versions.
 * To build documentation in PDF format, do (from 'gestor/docs' directory): 'make docs';
-  requires Sphinx installed, see https://www.sphinx-doc.org/ .  The resulting pdf file will be
-  in 'gestor/docs/build/pdf/' directory.
+  requires Python packages 'Sphinx' and 'rst2pdf' installed, see https://www.sphinx-doc.org/ . 
+  The resulting pdf file will be in 'gestor/docs/build/pdf/' directory.
 * Bandit finds no issues, added to Makefile's 'lint' section so that it can be run with 'make lint'
