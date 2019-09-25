@@ -309,6 +309,7 @@ class BaseORMLib(object):
                 conn.close()
                 engine.dispose()
                 self._set_database_engine(config)
+                self._set_session()
             else:
                 conn = self.__engine.connect()
                 conn.execute("commit")
