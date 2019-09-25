@@ -15,7 +15,7 @@ from setuptools import setup
 
 setup(
     name='pbs_gestor',
-    version='7.7',
+    version='7.8',
     packages=['pbs_gestor', 'pbs_gestor.model'],
     package_dir={'pbs_gestor': 'pbs_gestor', 'pbs_gestor.model': 'pbs_gestor/model'},
     package_data={'pbs_gestor': ['pbs_gestor_config.json']},
