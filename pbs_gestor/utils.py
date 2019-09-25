@@ -346,17 +346,17 @@ class PbsJob(BASE):
         }
         return "table :- {table}, p_key:- {attr}".format(table=self.__tablename__, attr=_p_key)
 
-
 PBSRAWFLATVIEW = {"__schema__": SCHEMA,
                   "__tablename__": FLATVIEW}  # "pbsflatviewreqjoin"}
 PBSRAWFLATVIEW[("__statement"
-                "__")] = SQL("CREATE OR REPLACE VIEW {vname} AS SELECT {pbsjob}.ji_jobid, "
+                "__")] = SQL("CREATE OR REPLACE VIEW {exschema}.{vname} AS "
+                             "SELECT {exschema}.{pbsjob}.ji_jobid, "
                              "{tmp}.l_memory,{tmp}.l_ncpus::int,{tmp}.l_nodect::int,{tmp}.l_place,"
                              "{tmp}.l_vmem,{tmp}.l_walltime::interval,"
                              "{tmp}.cpu_percent::int,{tmp}.cpu_time::interval,{tmp}.memory,"
                              "{tmp}.ncpus::int,"
                              "{tmp}.vmem,{tmp}.walltime::interval FROM {exschema}.crosstab"
-                             "('select ji_pbsjobidx,{res},ji_arrvalue from {pbsjobarr}"
+                             "('select ji_pbsjobidx,{res},ji_arrvalue from {exschema}.{pbsjobarr}"
                              " where {res}=''u_ncpus'' or {res}=''u_mem'' or"
                              " {res}=''u_vmem'' or {res}=''u_walltime'' or "
                              "{res}=''u_cput'' or {res}=''u_cpupercent'' or "
@@ -371,12 +371,11 @@ PBSRAWFLATVIEW[("__statement"
                              "l_memory text,l_ncpus text,l_nodect text,l_place text,l_vmem text,"
                              "l_walltime text,"
                              "cpu_percent text,cpu_time text,memory text,ncpus text,"
-                             "vmem text,walltime text) INNER JOIN {pbsjob} "
-                             "ON {tmp}.pbsjobidx = {pbsjob}.ji_pbsjobidx"
-                             ";").format(vname=Identifier(PBSRAWFLATVIEW["__schema__"],
-                                                          PBSRAWFLATVIEW["__tablename__"]),
-                                         pbsjobarr=Identifier(SCHEMA, JOBARRTABLE),
-                                         pbsjob=Identifier(SCHEMA, JOBTABLE),
+                             "vmem text,walltime text) INNER JOIN {exschema}.{pbsjob} "
+                             "ON {tmp}.pbsjobidx = {exschema}.{pbsjob}.ji_pbsjobidx"
+                             ";").format(vname=Identifier(PBSRAWFLATVIEW["__tablename__"]),
+                                         pbsjobarr=Identifier(JOBARRTABLE),
+                                         pbsjob=Identifier(JOBTABLE),
                                          exschema=Identifier(SCHEMA),
                                          res=Identifier('ji_arrresource'),
                                          tmp=Identifier('pbsjobarrow'))
