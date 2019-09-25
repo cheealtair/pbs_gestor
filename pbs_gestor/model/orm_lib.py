@@ -173,10 +173,33 @@ class BaseORMLib(object):
                 self._rollback()
                 try:
                     like = text("information_schema.routines.routine_name like 'crosstab%'")
-                    count = self.__session.query('* from information_schema.routines')
+                    count = self.__session.query('* FROM information_schema.routines')
                     count = count.filter(like).count()
                     if int(count) is 0:
                         self._create_extension(config)
+                        self.exschema = 'public'
+                    else:
+                        like = text("SELECT count(*) FROM information_schema.routines WHERE "
+                                    "information_schema.routines.routine_name LIKE 'crosstab%'"
+                                    " AND information_schema.routines.routine_schema IN :schemas")
+                        like = self.__session.execute(like,
+                                                      {"schemas": (schema,
+                                                                   'public')}).fetchone()[0]
+                        self._commit()
+                        if int(like) is 0:
+                            like = text("information_schema.routines.routine_name like 'crosstab%'")
+                            count = self.__session.query('routine_schema FROM'
+                                                         ' information_schema.routines')
+                            count = count.filter(like).limit(1)
+                            count = self.__session.execute(count).fetchone()[0]
+                            self._commit()
+                            self.exschema = count
+                            like = text("SELECT has_schema_privilege(:exschema, 'USAGE')")
+                            like = self.__session.execute(like,
+                                                          {"exschema": self.exschema}).fetchone()[0]
+                            self._commit()
+                            if like is False:
+                                self._grant_access(config)
                 except:
                     raise
                 try:
@@ -186,16 +209,54 @@ class BaseORMLib(object):
                     self._commit()
                 except ProgrammingError:
                     self._rollback()
-                    pcon = self.__engine.raw_connection().cursor()
-                    xxx = view["__statement__"].as_string(pcon)
-                    xxx = xxx.replace(SQL('{}.crosstab').format(Identifier(schema)).as_string(pcon),
-                                      'crosstab')
-                    self.__session.execute(xxx)
-                    self._commit()
+                    try:
+                        pcon = self.__engine.raw_connection().cursor()
+                        xxx = view["__statement__"].as_string(pcon)
+                        yyy = SQL('{}.crosstab').format(Identifier(schema)).as_string(pcon)
+                        xxx = xxx.replace(yyy, 'crosstab')
+                        self.__session.execute(xxx)
+                        self._commit()
+                    except ProgrammingError:
+                        self._rollback()
+                        pcon = self.__engine.raw_connection().cursor()
+                        xxx = view["__statement__"].as_string(pcon)
+                        yyy = SQL('{}.crosstab').format(Identifier(schema)).as_string(pcon)
+                        zzz = SQL('{}.crosstab').format(Identifier(self.exschema)).as_string(pcon)
+                        xxx = xxx.replace(yyy, zzz)
+                        self.__session.execute(xxx)
+                        self._commit()
         except Exception:
             self._rollback()
             self._reset_session()
             raise
+
+    def _grant_access(self, config):
+        """
+        Grant user access to schema containing tablefunc extension.
+
+        Args:
+            config (dict): Database configuration as a dictionary.
+        """
+        confi = config.copy()
+        user = confi["username"]
+        superuse = confi.pop("supdatabase"), confi.pop("supusername"), confi.pop("suppassword")
+        self.__engine.dispose()
+        configdef = confi.copy()
+        configdef["username"] = superuse[1]
+        configdef["password"] = superuse[2]
+        engine = create_engine(URL(**configdef))
+        conn = engine.connect()
+        conn.execute("commit")
+        pcon = engine.raw_connection().cursor()
+        conn.execute(SQL("GRANT USAGE "
+                         "ON SCHEMA {schema} "
+                         "TO {user};").format(schema=Identifier(self.exschema),
+                                              user=Identifier(user)).as_string(pcon))
+        conn.execute("commit")
+        conn.close()
+        engine.dispose()
+        self._set_database_engine(config)
+        self._set_session()
 
     def _set_database_engine(self, config):
         """
