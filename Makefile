@@ -48,7 +48,7 @@ build37:
 	rm -rf pbs_gestor.egg-info
 buildall:
 	rm -rf pbs_gestor.egg-info
-	python3 -m pex . -f ../wheelhouse -v -c gestor.py -o pbs_gestor.7.7.pex --disable-cache --no-compile --platform="linux_x86_64-cp-36-cp36m" --platform="linux_x86_64-cp-35-cp35m" --platform="linux_x86_64-cp-34-cp34m" --platform="linux_x86_64-cp-27-cp27mu" --platform="linux_x86_64-cp-37-cp37m"
+	python3 -m pex . -f ../wheelhouse -v -c gestor.py -o pbs_gestor.7.8.pex --disable-cache --no-compile --platform="linux_x86_64-cp-36-cp36m" --platform="linux_x86_64-cp-35-cp35m" --platform="linux_x86_64-cp-34-cp34m" --platform="linux_x86_64-cp-27-cp27mu" --platform="linux_x86_64-cp-37-cp37m"
 	rm -rf pbs_gestor.egg-info
 buildallwheels:
 	rm -rf pbs_gestor.egg-info
