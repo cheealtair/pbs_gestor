@@ -346,6 +346,7 @@ class PbsJob(BASE):
         }
         return "table :- {table}, p_key:- {attr}".format(table=self.__tablename__, attr=_p_key)
 
+
 PBSRAWFLATVIEW = {"__schema__": SCHEMA,
                   "__tablename__": FLATVIEW}  # "pbsflatviewreqjoin"}
 PBSRAWFLATVIEW[("__statement"
@@ -379,6 +380,8 @@ PBSRAWFLATVIEW[("__statement"
                                          exschema=Identifier(SCHEMA),
                                          res=Identifier('ji_arrresource'),
                                          tmp=Identifier('pbsjobarrow'))
+
+# Identifier(schema, table) is nice but works only since psycopg2 version 2.8
 
 TABLES = {
     JOBTABLE: PbsJob,
