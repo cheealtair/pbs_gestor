@@ -183,7 +183,7 @@ def date_range(start_date, end_date):
         yield start_date + timedelta(days=i)
 
 
-LOG = logging.getLogger(__name__)  # ???Constant or variable?!!!
+LOG = logging.getLogger("pbs_gestor")  # ???Constant or variable?!!!
 
 
 def str_to_date(fromday, dath):
@@ -336,6 +336,7 @@ def main(system_config):
          None
     """
     set_logger()
+    # print
     LOG.info('Starting the PBS Gestor. %s, log file %s', datetime.now(), LOGGING_CONFIG)
     fromday, tillday = get_input()
     try:
@@ -371,8 +372,8 @@ def main(system_config):
                     end = datetime.now().date()
                     database_handler.write(key="log_info", data={'start': start, 'end': end,
                                                                  'filename': logdate})
-            except DatabaseError.ConnectionError:
-                LOG.critical("Connection to database lost. Exiting Gestor daemon!")
+            except DatabaseError.ConnectionError as exc:
+                LOG.critical("Connection to database lost. Exiting Gestor daemon! %" % exc)
                 sys.exit()
             if pbs_log_handler.log_file_name == pbs_log_handlers[-1].log_file_name:
                 if pbs_log_handler.log_file_name != datetime.now().date().strftime(LOGFORM):
@@ -383,9 +384,9 @@ def main(system_config):
                              datetime.now().date().strftime(LOGFORM))
                     pbs_log_handlers.append(PbsLogHandler())
         LOG.info("Exiting Gestor daemon!!!")
-    except OperationalError:
-        LOG.exception("Couldn't connect to database, check contents of Gestor configuration file")
-        print("Check database connection settings in configuration file")
+    except OperationalError as exc:
+        LOG.exception("Couldn't connect, check contents of Gestor configuration file % " % exc)
+        print("Check database settings in configuration file")
         sys.exit()
     except KeyboardInterrupt:
         LOG.exception("Killed by user with keyboard!")
