@@ -53,8 +53,12 @@ class ReportingDBLib(BaseORMLib):
         """Get logger and initialise database, tables and schema."""
         self.log = logging.getLogger(__name__)
         self.log.info("Initialising Gestor database connection!")
-        super(ReportingDBLib, self).__init__(TABLES, SQLVIEWS, config, schema=SCHEMA,
-                                             connection_retries=self.CONNECTION_RETRIES)
+        try:
+            super(ReportingDBLib, self).__init__(TABLES, SQLVIEWS, config, schema=SCHEMA,
+                                                 connection_retries=self.CONNECTION_RETRIES)
+        except Exception as exc:
+            self.log.exception(exc)
+            raise
         self.log.info("Initialised Gestor database connection!")
 
     def __enter__(self):

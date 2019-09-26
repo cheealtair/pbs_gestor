@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright (C) 1994-2018 Altair Engineering, Inc.
+# Copyright (C) 1994-2019 Altair Engineering, Inc.
 # For more information, contact Altair at www.altair.com.
 #
 # Commercial License Information:
@@ -71,6 +71,7 @@ class BaseORMLib(object):
         self.__no_of_retries = connection_retries
         self._set_database_engine(config)
         self._set_session()
+        self.exschema = schema
 
         if not self._is_session_valid():
             self._reset_session()
