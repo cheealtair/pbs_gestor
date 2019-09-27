@@ -385,7 +385,7 @@ def main(system_config):
                     pbs_log_handlers.append(PbsLogHandler())
         LOG.info("Exiting Gestor daemon!!!")
     except OperationalError as exc:
-        LOG.exception("Couldn't connect, check contents of Gestor configuration file % " % exc)
+        LOG.exception("Couldn't connect, check contents of Gestor configuration file %s " % exc)
         print("Check database settings in configuration file")
         sys.exit()
     except KeyboardInterrupt:
