@@ -6,26 +6,71 @@ PBS Gestor is a daemon that reads the PBS accounting log messages and
 sends them to the PostgreSQL database in the desired format.
 
 ------------------------------------------------------------------------
+Package v7.9
+------------------------------------------------------------------------
+* Fixed logging bug.
+* More detailed exception logging.
+
+------------------------------------------------------------------------
 Package v7.8
 ------------------------------------------------------------------------
-
-ENHANCEMENTS:
-* Integration of Producer and Consumer into one daemon.
-* Ability to process logs over a certain date range.
-* Documentation.
-* Flat view of tables with jobs and resources, with attributes such as walltime and CPU usage.
-* Creates database, schema, tables and views if they do not exist yet.
-* Python 2.7 - Python 3.7 compatibility.
-* Configurable names of schema and tables.
 * Compatibility with psycopg2 earlier than 2.8.
 * If extension 'tablefunc' is installed in a different schema, use it, and give user access to the schema as required.
 
-NOTES:
+------------------------------------------------------------------------
+Package v7.7
+------------------------------------------------------------------------
+* Extended documentation.
+* Configurable names of schema and tables.
+
+------------------------------------------------------------------------
+Package v7.6
+------------------------------------------------------------------------
+* Combined two views into one, and cast columns from text to proper data type.
+* Added 'Requested resources' to view.
+* Fixed issue with links inside pdf Documentation.
+* Changed treatment of config file so that database connection would not happen on the first run.
+
+------------------------------------------------------------------------
+Package v7.5
+------------------------------------------------------------------------
+* Added usage, examples and troubleshooting to install.txt and documentation.
+* Configurable super-user name and password, and name of super-database.
+* Bandit finds no issues, added to Makefile's 'lint' section so that it can be run with 'make lint'
+
+------------------------------------------------------------------------
+Package v7.4
+------------------------------------------------------------------------
+* Tested to work with non-superuser PostgreSQL user, as specified in the config file.
+* For creation of extension (if needed), switches to "postgres" superuser with password "postgres".
+* For creation of database (if needed), switches to "postgres" database.
+* Tries both 'crosstab' and 'SCHEMA.crosstab' functions - in case the extension is installed inside SCHEMA, or outside it.
+
+------------------------------------------------------------------------
+Package v7.3
+------------------------------------------------------------------------
+* Fix the problem with crosstab function in tablefunc extension
+
+------------------------------------------------------------------------
+Package v7.2
+------------------------------------------------------------------------
+* Ability to process logs over a certain date range.
+* Log table for recording previous runs
 * Pylint Score - 10/10
+* Documentation.
+
+------------------------------------------------------------------------
+Package v7.1
+------------------------------------------------------------------------
+* Integration of Producer and Consumer into one daemon.
+* Flat views of tables with jobs and resources, with attributes such as walltime and CPU usage.
+* Creates database, schema, tables and views if they do not exist yet.
+* Python 2.7 - Python 3.7 compatibility.
+
+NOTES:
 * To build pex file, do (from 'gestor' directory): 'make buildallwheels';
   requires all versions of Python (2.7, 3.4, 3.5, 3.6, 3.7) installed and available in the $PATH,
   with pip, wheel and setuptools installed for each of the Python versions.
 * To build documentation in PDF format, do (from 'gestor/docs' directory): 'make docs';
   requires Python packages 'Sphinx' and 'rst2pdf' installed, see https://www.sphinx-doc.org/ . 
   The resulting pdf file will be in 'gestor/docs/build/pdf/' directory.
-* Bandit finds no issues, added to Makefile's 'lint' section so that it can be run with 'make lint'
