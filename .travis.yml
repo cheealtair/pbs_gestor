@@ -1,0 +1,36 @@
+language: python
+
+matrix:
+  include:
+    - sudo: required
+      services:
+        - docker
+      env: PIP=pip
+    - os: osx
+      language: generic
+      env: PIP=pip2
+
+env:
+  global:
+    - TWINE_USERNAME=Wikiwide
+    # Note: TWINE_PASSWORD is set in Travis settings
+
+script:
+  - $PIP install cibuildwheel==0.11.1
+  - cibuildwheel --output-dir wheelhouse
+  - python2.7 -m pip wheel -w wheelhouse . --isolated
+  - python3.4 -m pip wheel -w wheelhouse . --isolated
+  - python3.5 -m pip wheel -w wheelhouse . --isolated
+  - python3.6 -m pip wheel -w wheelhouse . --isolated
+  - python3.7 -m pip wheel -w wheelhouse . --isolated
+  - python3 -m pex . -f wheelhouse -v -c gestor.py -o pbs_gestor.pex --disable-cache --no-compile --platform="linux_x86_64-cp-36-cp36m" --platform="linux_x86_64-cp-35-cp35m" --platform="linux_x86_64-cp-34-cp34m" --platform="linux_x86_64-cp-27-cp27mu" --platform="linux_x86_64-cp-37-cp37m"
+  - cd docs
+  - make docs
+  - cp build/pdf/*.pdf ../wheelhouse/Documentation.pdf
+
+deploy:
+  provider: releases
+  api_key: ${GITHUB}
+  file_glob: true
+  file: wheelhouse/*.*
+  skip_cleanup: true
