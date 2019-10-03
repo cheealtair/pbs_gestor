@@ -127,11 +127,14 @@ before_deploy:
   - cp build/pdf/*.pdf ../wheelhouse/Documentation.pdf
   - rm ../wheelhouse/*.whl
   - $PIP install --user cibuildwheel==0.12.0
+  - cd ../
   - cibuildwheel --output-dir wheelhouse
+  - echo $GITHUB
+  - echo "$GITHUB"
 
 deploy:
   provider: releases
-  api_key: ${GITHUB}
+  api_key: "$GITHUB"
   file_glob: true
   file: wheelhouse/*.*
   skip_cleanup: true
