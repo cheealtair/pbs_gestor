@@ -116,8 +116,11 @@ before_deploy:
   - $PIP install Sphinx
   - $PIP install rst2pdf
   - $PIP install pex
+  - python3.7 -m pip install Sphinx
+  - python3.7 -m pip install rst2pdf
+  - python3.7 -m pip install pex
   - ls -lathorg wheelhouse
-  - python -m pex . -f wheelhouse -v -c gestor.py -o pbs_gestor.pex --disable-cache --no-compile --platform="linux_x86_64-cp-36-cp36m" --platform="linux_x86_64-cp-35-cp35m" --platform="linux_x86_64-cp-34-cp34m" --platform="linux_x86_64-cp-27-cp27mu" --platform="linux_x86_64-cp-27-cp27m" --platform="linux_x86_64-cp-37-cp37m"
+  - python3.7 -m pex . -f wheelhouse -v -c gestor.py -o pbs_gestor.pex --disable-cache --no-compile --platform="linux_x86_64-cp-36-cp36m" --platform="linux_x86_64-cp-35-cp35m" --platform="linux_x86_64-cp-34-cp34m" --platform="linux_x86_64-cp-27-cp27mu" --platform="linux_x86_64-cp-27-cp27m" --platform="linux_x86_64-cp-37-cp37m"
   - cp pbs_gestor.pex wheelhouse/
   - cd docs
   - make docs
