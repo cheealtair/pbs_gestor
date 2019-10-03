@@ -164,12 +164,16 @@ class BaseORMLib(object):
             viewname = view["__tablename__"].split(' ')[0]
             vschema = view["__schema__"].split(' ')[0]
             try:
-                pcon = self.__engine.raw_connection().cursor()
-                xxx = SQL('NULL from {}.{}').format(Identifier(vschema),
-                                                    Identifier(viewname)).as_string(pcon)
-                xxx = self.__session.query(xxx).limit(1)
-                self.__session.execute(xxx)
-                self._commit()
+                pcon = self.__engine.raw_connection()
+                try:
+                    pcur = pcon.cursor()
+                    xxx = SQL('NULL from {}.{}').format(Identifier(vschema),
+                                                        Identifier(viewname)).as_string(pcur)
+                    xxx = self.__session.query(xxx).limit(1)
+                    self.__session.execute(xxx)
+                    self._commit()
+                finally:
+                    pcon.close()
             except ProgrammingError:
                 self._rollback()
                 try:
@@ -204,28 +208,40 @@ class BaseORMLib(object):
                 except:
                     raise
                 try:
-                    pcon = self.__engine.raw_connection().cursor()
-                    xxx = view["__statement__"].as_string(pcon)
-                    self.__session.execute(xxx)
-                    self._commit()
+                    pcon = self.__engine.raw_connection()
+                    try:
+                        pcur = pcon.cursor()
+                        xxx = view["__statement__"].as_string(pcur)
+                        self.__session.execute(xxx)
+                        self._commit()
+                    finally:
+                        pcon.close()
                 except ProgrammingError:
                     self._rollback()
                     try:
-                        pcon = self.__engine.raw_connection().cursor()
-                        xxx = view["__statement__"].as_string(pcon)
-                        yyy = SQL('{}.crosstab').format(Identifier(schema)).as_string(pcon)
-                        xxx = xxx.replace(yyy, 'crosstab')
-                        self.__session.execute(xxx)
-                        self._commit()
+                        pcon = self.__engine.raw_connection()
+                        try:
+                            pcur = pcon.cursor()
+                            xxx = view["__statement__"].as_string(pcur)
+                            yyy = SQL('{}.crosstab').format(Identifier(schema)).as_string(pcur)
+                            xxx = xxx.replace(yyy, 'crosstab')
+                            self.__session.execute(xxx)
+                            self._commit()
+                        finally:
+                            pcon.close()
                     except ProgrammingError:
                         self._rollback()
-                        pcon = self.__engine.raw_connection().cursor()
-                        xxx = view["__statement__"].as_string(pcon)
-                        yyy = SQL('{}.crosstab').format(Identifier(schema)).as_string(pcon)
-                        zzz = SQL('{}.crosstab').format(Identifier(self.exschema)).as_string(pcon)
-                        xxx = xxx.replace(yyy, zzz)
-                        self.__session.execute(xxx)
-                        self._commit()
+                        pcon = self.__engine.raw_connection()
+                        try:
+                            pcur = pcon.cursor()
+                            xxx = view["__statement__"].as_string(pcur)
+                            yyy = SQL('{}.crosstab').format(Identifier(schema)).as_string(pcur)
+                            zzz = SQL('{}.crosstab').format(Identifier(self.exschema)).as_string(pcur)
+                            xxx = xxx.replace(yyy, zzz)
+                            self.__session.execute(xxx)
+                            self._commit()
+                        finally:
+                            pcon.close()
         except Exception:
             self._rollback()
             self._reset_session()
@@ -247,14 +263,20 @@ class BaseORMLib(object):
         configdef["password"] = superuse[2]
         engine = create_engine(URL(**configdef))
         conn = engine.connect()
-        conn.execute("commit")
-        pcon = engine.raw_connection().cursor()
-        conn.execute(SQL("GRANT USAGE "
-                         "ON SCHEMA {schema} "
-                         "TO {user};").format(schema=Identifier(self.exschema),
-                                              user=Identifier(user)).as_string(pcon))
-        conn.execute("commit")
-        conn.close()
+        try:
+            conn.execute("commit")
+            pcon = engine.raw_connection()
+            try:
+                pcur = pcon.cursor()
+                conn.execute(SQL("GRANT USAGE "
+                                 "ON SCHEMA {schema} "
+                                 "TO {user};").format(schema=Identifier(self.exschema),
+                                                      user=Identifier(user)).as_string(pcur))
+                conn.execute("commit")
+            finally:
+                pcon.close()
+        finally:
+            conn.close()
         engine.dispose()
         self._set_database_engine(config)
         self._set_session()
@@ -281,12 +303,14 @@ class BaseORMLib(object):
                 self.__engine = create_engine(URL(**configdef))
                 try:
                     conn = self.__engine.connect()
+                    try:
+                        conn.execute("commit")
+                        conn.execute("CREATE DATABASE %s;" % config["database"])
+                    finally:
+                        conn.close()
                 except OperationalError:
                     self.__engine.dispose()
                     raise
-                conn.execute("commit")
-                conn.execute("CREATE DATABASE %s;" % config["database"])
-                conn.close()
                 self.__engine.dispose()
                 self.__engine = create_engine(URL(**confi))
         except ProgrammingError:
@@ -304,19 +328,23 @@ class BaseORMLib(object):
                 configdef["password"] = superuse[2]
                 engine = create_engine(URL(**configdef))
                 conn = engine.connect()
-                conn.execute("commit")
-                conn.execute("CREATE EXTENSION IF NOT EXISTS tablefunc;")
-                conn.execute("commit")
-                conn.close()
+                try:
+                    conn.execute("commit")
+                    conn.execute("CREATE EXTENSION IF NOT EXISTS tablefunc;")
+                    conn.execute("commit")
+                finally:
+                    conn.close()
                 engine.dispose()
                 self._set_database_engine(config)
                 self._set_session()
             else:
                 conn = self.__engine.connect()
-                conn.execute("commit")
-                conn.execute("CREATE EXTENSION IF NOT EXISTS tablefunc;")
-                conn.execute("commit")
-                conn.close()
+                try:
+                    conn.execute("commit")
+                    conn.execute("CREATE EXTENSION IF NOT EXISTS tablefunc;")
+                    conn.execute("commit")
+                finally:
+                    conn.close()
         except ProgrammingError:
             raise
 
