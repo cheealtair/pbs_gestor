@@ -10,6 +10,8 @@ Package v7.9
 ------------------------------------------------------------------------
 * Fixed logging bug.
 * More detailed exception logging.
+* More detailed release notes.
+* Closing all connections in orm lib.
 
 ------------------------------------------------------------------------
 Package v7.8
