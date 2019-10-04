@@ -160,92 +160,54 @@ class BaseORMLib(object):
         Args:
             view (dict): Name and select statement for the view.
         """
+        viewname, vschema = view["__tablename__"].split(' ')[0], view["__schema__"].split(' ')[0]
         try:
-            viewname = view["__tablename__"].split(' ')[0]
-            vschema = view["__schema__"].split(' ')[0]
-            try:
-                pcon = self.__engine.raw_connection()
-                try:
-                    pcur = pcon.cursor()
-                    xxx = SQL('NULL from {}.{}').format(Identifier(vschema),
-                                                        Identifier(viewname)).as_string(pcur)
-                    xxx = self.__session.query(xxx).limit(1)
-                    self.__session.execute(xxx)
-                    self._commit()
-                finally:
-                    pcon.close()
-            except ProgrammingError:
-                self._rollback()
-                try:
-                    like = text("information_schema.routines.routine_name like 'crosstab%'")
-                    count = self.__session.query('* FROM information_schema.routines')
-                    count = count.filter(like).count()
-                    if int(count) is 0:
-                        self._create_extension(config)
-                        self.exschema = 'public'
-                    else:
-                        like = text("SELECT count(*) FROM information_schema.routines WHERE "
-                                    "information_schema.routines.routine_name LIKE 'crosstab%'"
-                                    " AND information_schema.routines.routine_schema IN :schemas")
-                        like = self.__session.execute(like,
-                                                      {"schemas": (schema,
-                                                                   'public')}).fetchone()[0]
-                        self._commit()
-                        if int(like) is 0:
-                            like = text("information_schema.routines.routine_name like 'crosstab%'")
-                            count = self.__session.query('routine_schema FROM'
-                                                         ' information_schema.routines')
-                            count = count.filter(like).limit(1)
-                            count = self.__session.execute(count).fetchone()[0]
-                            self._commit()
-                            self.exschema = count
-                            like = text("SELECT has_schema_privilege(:exschema, 'USAGE')")
-                            like = self.__session.execute(like,
-                                                          {"exschema": self.exschema}).fetchone()[0]
-                            self._commit()
-                            if like is False:
-                                self._grant_access(config)
-                except:
-                    raise
-                try:
-                    pcon = self.__engine.raw_connection()
-                    try:
-                        pcur = pcon.cursor()
-                        xxx = view["__statement__"].as_string(pcur)
-                        self.__session.execute(xxx)
-                        self._commit()
-                    finally:
-                        pcon.close()
-                except ProgrammingError:
-                    self._rollback()
-                    try:
-                        pcon = self.__engine.raw_connection()
-                        try:
-                            pcur = pcon.cursor()
-                            xxx = view["__statement__"].as_string(pcur)
-                            yyy = SQL('{}.crosstab').format(Identifier(schema)).as_string(pcur)
-                            xxx = xxx.replace(yyy, 'crosstab')
-                            self.__session.execute(xxx)
-                            self._commit()
-                        finally:
-                            pcon.close()
-                    except ProgrammingError:
-                        self._rollback()
-                        pcon = self.__engine.raw_connection()
-                        try:
-                            pcur = pcon.cursor()
-                            xxx = view["__statement__"].as_string(pcur)
-                            yyy = SQL('{}.crosstab').format(Identifier(schema)).as_string(pcur)
-                            zzz = SQL('{}.crosstab').format(Identifier(self.exschema)).as_string(pcur)
-                            xxx = xxx.replace(yyy, zzz)
-                            self.__session.execute(xxx)
-                            self._commit()
-                        finally:
-                            pcon.close()
+            dve = SQL('NULL from {}.{}').format(Identifier(vschema),
+                                                Identifier(viewname))
+            veq = self.__session.query(self._sql_to_string(dve)).limit(1)
+            self.__session.execute(veq)
+            self._commit()
+        except ProgrammingError:
+            self._rollback()
+            like = text("information_schema.routines.routine_name like 'crosstab%'")
+            count = self.__session.query('* FROM information_schema.routines')
+            count = count.filter(like).count()
+            if int(count) == 0:
+                self._create_extension(config)
+                self.exschema = 'public'
+            else:
+                like = text("information_schema.routines.routine_name like 'crosstab%'")
+                count = self.__session.query('routine_schema FROM'
+                                             ' information_schema.routines')
+                count = count.filter(like).limit(1)
+                count = self.__session.execute(count).fetchone()[0]
+                self._commit()
+                self.exschema = count
+                like = text("SELECT has_schema_privilege(:exschema, 'USAGE')")
+                like = self.__session.execute(like,
+                                              {"exschema": self.exschema}).fetchone()[0]
+                self._commit()
+                if not like:
+                    self._grant_access(config)
+            viewst, raw = self._sql_to_string(view["__statement__"]), '{}.crosstab'
+            defsch = self._sql_to_string(SQL(raw).format(Identifier(schema)))
+            exsch = SQL(raw).format(Identifier(self.exschema))
+            self.__session.execute(viewst.replace(defsch, self._sql_to_string(exsch)))
+            self._commit()
         except Exception:
             self._rollback()
             self._reset_session()
             raise
+
+    def _sql_to_string(self, psql):
+        """Use raw connection to convert psycopg2 SQL to string."""
+        pcon = self.__engine.raw_connection()
+        try:
+            pcur = pcon.cursor()
+            xxx = psql.as_string(pcur)
+        finally:
+            pcon.close()
+        return xxx
 
     def _grant_access(self, config):
         """
