@@ -1,0 +1,141 @@
+language: python
+
+matrix:
+  include:
+    - sudo: required
+      services:
+        - docker
+      env: PIP=pip
+      addons:
+        apt:
+          packages:
+            - openssl
+    - os: osx
+      language: generic
+      env: PIP=pip2
+
+env:
+  global:
+    - TWINE_USERNAME=Wikiwide  # Note: TWINE_PASSWORD is set in Travis settings
+    - *env
+    - OPENSSL_VERSION=1.0.2t
+    - OPENSSL_DIR="${HOME}/.pex_openssl"
+    - LD_LIBRARY_PATH="${OPENSSL_DIR}/lib"
+    - SSL_CERT_DIR=/usr/lib/ssl/certs
+
+before_install: |
+    if [ ! -f "${OPENSSL_DIR}/installed-${OPENSSL_VERSION}" ]; then
+      rm -rf "${OPENSSL_DIR}"
+      curl https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz | tar -xz
+      (
+        cd openssl-${OPENSSL_VERSION}
+        ./config shared --prefix="${OPENSSL_DIR}"
+        make
+        make install
+      )
+      touch "${OPENSSL_DIR}/installed-${OPENSSL_VERSION}"
+    fi
+
+install:
+  - wget https://www.python.org/ftp/python/2.7.16/Python-2.7.16.tgz -O python27.tgz
+  - tar xzf python27.tgz
+  - TEST=`pwd`
+  - mkdir cp27m
+  - mkdir cp27mu
+  - cd ./*y*2.7*
+  - ./configure --prefix=$TEST/cp27m/ --enable-unicode=ucs2 >>/dev/null
+  - make altinstall >>/dev/null
+  - ./configure --prefix=$TEST/cp27mu/ --enable-unicode=ucs4 >>/dev/null
+  - make altinstall >>/dev/null
+  - cd ../
+  - wget https://www.python.org/ftp/python/3.4.10/Python-3.4.10.tgz -O python34.tgz
+  - tar xzf python34.tgz
+  - cd ./*y*3.4*
+  - ./configure --prefix=$TEST/ >>/dev/null
+  - make altinstall >>/dev/null
+  - cd ../
+  - wget https://www.python.org/ftp/python/3.5.7/Python-3.5.7.tgz -O python35.tgz
+  - tar xzf python35.tgz
+  - cd ./*y*3.5*
+  - ./configure --prefix=$TEST/ >>/dev/null
+  - make altinstall >>/dev/null
+  - cd ../
+  - wget https://www.python.org/ftp/python/3.6.9/Python-3.6.9.tgz -O python36.tgz
+  - tar xzf python36.tgz
+  - cd ./*y*3.6*
+  - ./configure --prefix=$TEST/ >>/dev/null
+  - make altinstall >>/dev/null
+  - cd ../
+  - wget https://www.python.org/ftp/python/3.7.4/Python-3.7.4.tgz -O python37.tgz
+  - tar xzf python37.tgz
+  - cd ./*y*3.7*
+  - ./configure --prefix=$TEST/ --with-openssl=${OPENSSL_DIR} | grep ssl
+  - make altinstall | grep ssl
+  - cd ../
+  - echo $TEST
+  - echo $PWD
+  - ls -lathorg ./bin/
+  - ls -lathorg ./cp27m/bin/
+  - ls -lathorg ./cp27mu/bin/
+  - export PATH27m=$PWD/cp27m/bin/:$PWD/bin/:$PATH
+  - export PATH27mu=$PWD/cp27mu/bin:$PWD/bin/:$PATH
+
+script:
+  - $PIP install --upgrade pip
+  - $PIP install cibuildwheel==0.12.0
+  - cibuildwheel --output-dir wheelhouse
+  - rm -rf pbs_gestor.egg-info
+  - export PATH=$PATH27m
+  - python2.7 -m ensurepip
+  - python2.7 -m pip install wheel
+  - python2.7 -m pip wheel -w wheelhouse . --isolated
+  - rm -rf pbs_gestor.egg-info
+  - export PATH=$PATH27mu
+  - python2.7 -m ensurepip
+  - python2.7 -m pip install wheel
+  - python2.7 -m pip wheel -w wheelhouse . --isolated
+  - rm -rf pbs_gestor.egg-info
+  - python3.4 -m ensurepip
+  - python3.4 -m pip install wheel
+  - python3.4 -m pip wheel -w wheelhouse . --isolated
+  - rm -rf pbs_gestor.egg-info
+  - python3.5 -m ensurepip
+  - python3.5 -m pip install wheel
+  - python3.5 -m pip wheel -w wheelhouse . --isolated
+  - rm -rf pbs_gestor.egg-info
+  - python3.6 -m ensurepip
+  - python3.6 -m pip install wheel
+  - python3.6 -m pip wheel -w wheelhouse . --isolated
+  - rm -rf pbs_gestor.egg-info
+  - python3.7 -m ensurepip
+  - python3.7 -m pip install wheel
+  - python3.7 -m pip wheel -w wheelhouse . --isolated
+  - ls -lathorg wheelhouse
+
+before_deploy:
+  - $PIP install Sphinx
+  - $PIP install rst2pdf
+  - $PIP install pex
+  - python3.7 -m pip install Sphinx
+  - python3.7 -m pip install rst2pdf
+  - python3.7 -m pip install pex
+  - ls -lathorg wheelhouse
+  - python3.7 -m pex . -f wheelhouse -v -c gestor.py -o pbs_gestor.pex --disable-cache --no-compile --platform="linux_x86_64-cp-36-cp36m" --platform="linux_x86_64-cp-35-cp35m" --platform="linux_x86_64-cp-34-cp34m" --platform="linux_x86_64-cp-27-cp27mu" --platform="linux_x86_64-cp-27-cp27m" --platform="linux_x86_64-cp-37-cp37m"
+  - cp pbs_gestor.pex wheelhouse/
+  - cd docs
+  - make docs
+  - cp build/pdf/*.pdf ../wheelhouse/Documentation.pdf
+  - rm ../wheelhouse/*.whl
+  - $PIP install --user cibuildwheel==0.12.0
+  - cd ../
+  - cibuildwheel --output-dir wheelhouse
+  - echo $GITHUB
+  - echo "$GITHUB"
+
+deploy:
+  provider: releases
+  api_key: "$GITHUB"
+  file_glob: true
+  file: wheelhouse/*.*
+  skip_cleanup: true
+  draft: true

@@ -373,7 +373,7 @@ def main(system_config):
                     database_handler.write(key="log_info", data={'start': start, 'end': end,
                                                                  'filename': logdate})
             except DatabaseError.ConnectionError as exc:
-                LOG.critical("Connection to database lost. Exiting Gestor daemon! %" % exc)
+                LOG.critical("Connection to database lost. Exiting Gestor daemon! %s ", exc)
                 sys.exit()
             if pbs_log_handler.log_file_name == pbs_log_handlers[-1].log_file_name:
                 if pbs_log_handler.log_file_name != datetime.now().date().strftime(LOGFORM):
@@ -384,8 +384,8 @@ def main(system_config):
                              datetime.now().date().strftime(LOGFORM))
                     pbs_log_handlers.append(PbsLogHandler())
         LOG.info("Exiting Gestor daemon!!!")
-    except OperationalError as exc:
-        LOG.exception("Couldn't connect, check contents of Gestor configuration file % " % exc)
+    except OperationalError:
+        LOG.exception("Couldn't connect, check contents of Gestor configuration file.")
         print("Check database settings in configuration file")
         sys.exit()
     except KeyboardInterrupt:
